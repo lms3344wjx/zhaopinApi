@@ -520,7 +520,7 @@ die;
         $key = 'zhaopin200';
         
         //判断sign值是否正确,正确返回信息，错误返回错误信息
-        if($sign == md5($error.$key)){
+        if($sign == $key){
             $query=new \yii\db\Query();
             $info = $query->select("*")->from('position')->where(['level'=>1])->all();
             $data = Array(
@@ -556,7 +556,7 @@ die;
         $key = 'zhaopin200';
 
         //判断sign值是否正确,正确返回信息，错误返回错误信息
-        if($sign == md5($error.$key)){
+        if($sign == $key){
             $query=new \yii\db\Query();
             $info = $query->select("*")->from('position')->where(['level'=>2])->all();
             $data = Array(
@@ -592,7 +592,7 @@ die;
         $key = 'zhaopin200';
 
         //判断sign值是否正确,正确返回信息，错误返回错误信息
-        if($sign == md5($error.$key)){
+        if($sign == $key){
             $query=new \yii\db\Query();
             $info = $query->select("*")->from('position')->where(['level'=>3])->all();
             $data = Array(
@@ -627,7 +627,7 @@ die;
         $key = 'zhaopin200';
 
         //判断sign值是否正确,正确返回信息，错误返回错误信息
-        if($sign == md5($error.$key)){
+        if($sign == $key){
             $query=new \yii\db\Query();
             $info = $query->select("*")->from('region')->all();
             $data = Array(
