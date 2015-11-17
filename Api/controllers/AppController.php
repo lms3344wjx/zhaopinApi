@@ -8,7 +8,7 @@ use yii\web\Controller;
 
 use app\models\Member;
 use app\models\Search;
-
+use yii\web\Session;
 
 
 class AppController extends Controller
