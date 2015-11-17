@@ -17,8 +17,13 @@ class Member extends \yii\db\ActiveRecord
 	}
 
 	public function forgetpwd($member_phone,$password){
-		$result=Member::save($password)->where(['member_phone'=>$member_phone])->asArray()->one();
-		return $result;
+		
+		$customer = Member::find()->where(['member_phone' => $member_phone])->one();
+		$customer->password=$password;
+		//print_r($customer);die;
+		$customer->save();
+		
+		return $customer;
 	}
 
 	public function checkinsert($data){

@@ -1,11 +1,7 @@
 <?php
-
 namespace app\controllers;
-
 use Yii;
-
 use yii\web\Controller;
-
 use app\models\Member;
 use app\models\Search;
 use yii\web\Session;
@@ -19,7 +15,6 @@ class AppController extends Controller
 	 */
     public function actionLogin() {
 		
-		$email = empty($_REQUEST['email']) ? '' : $_REQUEST['email'];
 		$member_phone = empty($_REQUEST['member_phone']) ? '' : $_REQUEST['member_phone'];
 		$password = empty($_REQUEST['password']) ? '' : $_REQUEST['password'];
 		
@@ -27,7 +22,7 @@ class AppController extends Controller
 		$error = 'error';
 		
 		//是否为空
-		if ($email == '' || $password == '' || $member_phone=='') {
+		if ($password == '' || $member_phone=='') {
 			$data = Array(
 				'status'=>	100,
 				'msg'	=>	'Parameter transfer error!',
@@ -41,20 +36,19 @@ class AppController extends Controller
 		}
 
 		//接收并防注入
-		$email = $this->lib_replace_end_tag(trim($email));
 		$member_phone = md5($this->lib_replace_end_tag(trim($member_phone))); 
 		$password = md5($this->lib_replace_end_tag(trim($password))); 
 
 		$Member=new Member();
-		$query = $Member->checkemail($email);
+		$query = $Member->checkphone($member_phone);
 		//print_r($query['password']);die;
 		//var_dump($query);die;
-		if($Member->checkemail($email)){
+		if($Member->checkphone($member_phone)){
 			if($password == $query['password']){
 				//开启session
 				$session = Yii::$app->session;
 				$session->open();
-				$session->set('email', $email);
+				$session->set('member_phone', $member_phone);
 				$session->set('member_id', $query['member_id']);
 				$verifyCode = md5("prestr".$verify."endstr");
 				//登陆成功
@@ -100,19 +94,18 @@ class AppController extends Controller
 	/**
 	 * 个人用户注册
 	 */
-	public function register() {
+	public function actionRegister() {
 		
 		$key = 'zhaopin200';
 		$error = 'error';
 		$Member=new Member();
 
-		$email = empty($_REQUEST['email']) ? '' : $_REQUEST['email'];
-		$verify = empty($_REQUEST['verify']) ? '' : $_REQUEST['verify'];
+		$member_phone = empty($_REQUEST['member_phone']) ? '' : $_REQUEST['member_phone'];
 		$password = empty($_REQUEST['password']) ? '' : $_REQUEST['password'];
 
 
 		//是否为空
-		if ($email == '' || $verify == '' || $password == '') {
+		if ($member_phone == '') {
 			$data = Array(
 				'status'=>	100,
 				'msg'	=>	'Parameter error!',
@@ -124,19 +117,46 @@ class AppController extends Controller
 			);
 			exit(json_encode($data));
 		}
+		$session = Yii::$app->session;
+		$session->open();
 		
-		//接收并防注入
-		$data['email'] = $this->lib_replace_end_tag(trim($email));
-		$data['verify'] = $this->lib_replace_end_tag(trim($verify));
-		$data['user_pass'] = md5($this->lib_replace_end_tag(trim($password))); 
-
-		if($Member->checkemail($data['email'])){
+		$session->set('member_phone', $member_phone);
+		$verify = $this->actionGetverify();
+	}
+	public function actionYanregister() {
+		$verify=$_REQUEST['verify'];
+		$data=$this->actionPutverify($verify);
+	}
+	public function actionRegisterpwd() {
+		$Member=new Member();
+		
+		$session = Yii::$app->session;
+		$session->open();
+		$member_phone=$_SESSION['member_phone'];
+		$password = empty($_REQUEST['password']) ? '' : $_REQUEST['password'];
+		if ($member_phone == ''||$member_phone=='') {
 			$data = Array(
 				'status'=>	100,
 				'msg'	=>	'Parameter error!',
 				'sign'	=>	md5($error.$key),
 				'data'	=>	Array(
-								'code'		=>	100003,
+								'code'		=>	100023,
+								'content'	=>	$error
+							)
+			);
+			exit(json_encode($data));
+		}
+		//接收并防注入
+		$data['member_phone'] = $this->lib_replace_end_tag(trim($member_phone));
+		$data['password'] = md5($this->lib_replace_end_tag(trim($password))); 
+
+		if($Member->checkphone($data['member_phone'])){
+			$data = Array(
+				'status'=>	100,
+				'msg'	=>	'Parameter error!',
+				'sign'	=>	md5($error.$key),
+				'data'	=>	Array(
+								'code'		=>	100004,
 								'content'	=>	$error
 							)
 			);
@@ -146,12 +166,12 @@ class AppController extends Controller
 		if($Member->checkinsert($data)){
 			
 			//注册成功 登陆状态
-			$query = $Member->checkemail($email);
+			$query = $Member->checkphone($member_phone);
 			
 			$data = Array(
 				'status'=>	200,
 				'msg'	=>	'Success!',
-				'sign'	=>	md5($query['email'].$key),
+				'sign'	=>	md5($query['member_phone'].$key),
 				'data'	=>	Array(
 								'content'	=>	$query
 							)
@@ -206,7 +226,7 @@ class AppController extends Controller
 		$verify = empty($_SESSION['verify']) ? '' : $_SESSION['verify'];
 
 		//是否为空
-		if ($verify == '' || $member_phone == '' || $password == '') {
+		if ($member_phone == '') {
 			$data = Array(
 				'status'=>	100,
 				'msg'	=>	'Parameter error!',
@@ -219,18 +239,45 @@ class AppController extends Controller
 			exit(json_encode($data));
 		}
 		
-		//接收数据
-		$member_phone = $this->lib_replace_end_tag(trim($member_phone));
-		$password = md5($this->lib_replace_end_tag(trim($password))); 
-		$verify = $this->lib_replace_end_tag(trim($verify));
-		$data = $this->actionPutverify($verify);
-		
-		if($data['status']  == '200'){
-			
-			//数据库中是否有这个手机账号
-			if($Member->checkphone($member_phone)){
-				//修改成功
-				if($Member->forgetpwd($member_phone,$password)){
+		$session->set('member_phone', $member_phone);
+		$verify = $this->actionGetverify();
+	}
+
+	public function actionYanforgetpwd() {
+		$verify=$_REQUEST['verify'];
+		$data=$this->actionPutverify($verify);
+	}
+	public function actionForgetpwds() {
+		$key='zhaopin200';
+		$error="error";
+		$success="success";
+
+		$Member=new Member();
+
+		//开启session
+		$session = Yii::$app->session;
+		$session->open();
+		//$Member->forgetpwd();die;
+		$member_phone=$_SESSION['member_phone'];
+		$password = empty($_REQUEST['password']) ? '' : $_REQUEST['password'];
+		if ($member_phone == ''||$member_phone=='') {
+			$data = Array(
+				'status'=>	100,
+				'msg'	=>	'Parameter error!',
+				'sign'	=>	md5($error.$key),
+				'data'	=>	Array(
+								'code'		=>	100023,
+								'content'	=>	$error
+							)
+			);
+			exit(json_encode($data));
+		}
+		//接收并防注入
+		$data['member_phone'] = $this->lib_replace_end_tag(trim($member_phone));
+		$data['password'] = md5($this->lib_replace_end_tag(trim($password))); 
+		$password=md5($password);
+		if($Member->checkphone($data['member_phone'])){
+			if($Member->forgetpwd($member_phone,$password)){
 					$data = Array(
 						'status'=>	200,
 						'msg'	=>	'Success!',
@@ -241,7 +288,7 @@ class AppController extends Controller
 					);
 					exit(json_encode($data));
 				}
-			}
+		}
 			
 			//没有这个账号，或修改失败
 			$data = Array(
@@ -256,8 +303,6 @@ class AppController extends Controller
 			exit(json_encode($data));
 
 		}
-		exit(json_encode($data));
-	}
 
 	/**
 	 * 个人用户 获取手机验证码
@@ -299,8 +344,7 @@ class AppController extends Controller
 		$session->set('codetime', date("Y-m-d H:i:s",time()));
 		$session->set('randcode', $verifyCode);
 		$session->set('yuan', $verify);
-		print_r($_SESSION);
-die;
+		//print_r($_SESSION);die;
 		//短信接口
 		$http = 'http://api.sms.cn/mtutf8/';
 		$uid = 'php1402a'; //用户账号
@@ -420,7 +464,7 @@ die;
 	/**
 	 * 个人用户 验证手机验证码
 	 */
-	public function actionPutverify() {
+	public function actionPutverify($verify) {
 		
 		$key = 'zhaopin200';
 		$error = 'error';
@@ -430,7 +474,7 @@ die;
 		$session = Yii::$app->session;
 		$session->open();
 		
-		$verify = empty($_REQUEST['verify']) ? '' : $_REQUEST['verify'];
+		
 		
 		//是否为空
 		if ($verify == '') {
@@ -537,7 +581,7 @@ die;
                     'status' => 100,
                     'msg'    => 'Parameter transfer error',
                     'data'   => Array(
-                                    'code' => '100203',
+                                    'code' => '100023',
                                     'content'  => $error
                                 )
             );
@@ -573,7 +617,7 @@ die;
                     'status' => 100,
                     'msg'    => 'Parameter transfer error',
                     'data'   => Array(
-                                    'code' => '100203',
+                                    'code' => '100023',
                                     'content'  => $error
                                 )
             );
@@ -609,7 +653,7 @@ die;
                     'status' => 100,
                     'msg'    => 'Parameter transfer error',
                     'data'   => Array(
-                                    'code' => '100203',
+                                    'code' => '100023',
                                     'content'  => $error
                                 )
             );
@@ -644,7 +688,7 @@ die;
                     'status' => 100,
                     'msg'    => 'Parameter transfer error',
                     'data'   => Array(
-                                    'code' => '100203',
+                                    'code' => '100023',
                                     'content'  => $error
                                 )
             );
@@ -809,30 +853,32 @@ die;
 		}else{
 			//接收session值，判断用户
       		$session = Yii::$app->session;
-			$email = $session->get('email');
-  			
-			if(isset($_REQUEST['email'])){
-				$email = $_REQUEST['email'];
+			$member_phone = $session->get('member_phone');
+			if(isset($_REQUEST['member_phone'])){
+				$member_phone = $_REQUEST['member_phone'];
 			}
-			//查找会员表
-			$sql = "select * from member where email='$email'";
-			$arr= Yii::$app->db->createCommand($sql)->queryAll();
-			$aa = "";
-			foreach($arr as $k=>$v){
-				$aa=$v;
-			}
-			$info["member"]=$aa; 
-			$member_id=$info['member']['member_id'];
 			
-			//查找个人简历表
-			$sql = "select * from resume where member_id=$member_id";
-			$arr2= Yii::$app->db->createCommand($sql)->queryAll();
-			$bb="";
-			foreach($arr2 as $k=>$v){
-				$bb=$v;
-			}
-			$info["resume"]=$bb;
-			if($email){
+			if($member_phone){
+				//查找会员表
+				$sql = "select * from member where member_phone='$member_phone'";
+				$arr= Yii::$app->db->createCommand($sql)->queryAll();
+				$aa = "";
+				foreach($arr as $k=>$v){
+					$aa=$v;
+				}
+				$info["member"]=$aa; 
+				print_r($info);die;
+				$member_id=$info['member']['member_id'];
+
+				//查找个人简历表
+				$sql = "select * from resume where member_id=$member_id";
+				$arr2= Yii::$app->db->createCommand($sql)->queryAll();
+				$bb="";
+				foreach($arr2 as $k=>$v){
+					$bb=$v;
+				}
+				$info["resume"]=$bb;
+
 				if($info['resume']){
 					//查找工作经历表
 					$sql = "select * from work_experience where member_id=$member_id";
@@ -887,7 +933,7 @@ die;
 	}
 
 	//信息完善页面二
-	public function basic1(){   
+	public function actionBasic1(){   
 	     $basic = $_REQUEST['basic'];
 		if(empty($basic)){
 			$datas = Array(
@@ -924,7 +970,7 @@ die;
     }
         
 	//信息完善页面三
-    public function basic2(){  
+    public function actionBasic2(){  
         $basic1 = $_REQUEST['basic1'];
 		if(empty($basic1)){
 			$datas = Array(
@@ -956,7 +1002,7 @@ die;
 			echo json_encode($datas);
 }
     //信息完善页面四
-    public function basic3(){
+    public function actionBasic3(){
      	$basic2 = $_REQUEST['basic2'];
 		if(empty($basic2)){
 			$datas = Array(
@@ -990,7 +1036,7 @@ die;
 
 
 	//最后保存
-	public function basic(){    
+	public function actionBasic(){    
 	    $basic3 = $_REQUEST['basic3'];
 		if(empty($basic3)){
 			$datas = Array(
@@ -1017,14 +1063,14 @@ die;
     public function actionGetresume(){
         
         if(empty($_GET['resume_id']) || !isset($_GET['resume_id'])){
-            $data['status'] = 404;
+            $data['status'] = 100;
             $data['msg'] = '简历不得为空!请选择简历!';
             exit(json_encode($data));
         }
         $r_id = $_GET['resume_id'];
         $arr = Yii::$app->db->createCommand('SELECT * FROM resume where resume_id='.$r_id)->queryOne();
         if(!$arr){
-            $data['status'] = 404;
+            $data['status'] = 100;
             $data['msg'] = '您查询的简历不存在!请确认后再进行查询!';
         }else{
             $data['status'] = 200;
@@ -1039,7 +1085,7 @@ die;
     public function actionEditresume(){
         
         if(!isset($_REQUEST['resume_id']) || empty($_REQUEST['resume_id'])){
-            $data['status'] = 404;
+            $data['status'] = 100;
             $data['msg'] = '简历不得为空!请选择简历!';
             exit(json_encode($data));
         }
@@ -1089,7 +1135,7 @@ die;
         $r_id = $_REQUEST['resume_id'];
         $arr = Yii::$app->db->createCommand('SELECT * FROM resume where resume_id='.$r_id)->queryOne();
         if(!$arr){
-            $data['status'] = 404;
+            $data['status'] = 100;
             $data['msg'] = '您编辑的简历不存在!请确认后再进行编辑!';
             exit(json_encode($data));
         }
@@ -1101,7 +1147,7 @@ die;
             $data['msg'] = '编辑简历成功!';
                  
         }else{
-            $data['status'] = 404;
+            $data['status'] = 100;
             $data['msg'] = '编辑简历失败!';
         }
         exit(json_encode($data));
